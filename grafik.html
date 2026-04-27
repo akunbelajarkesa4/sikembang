@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#5fb48c">
+    <title>SIKEMBANG | Grafik</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <div class="brand-mark">
+          <div class="brand-mark__logo">SK</div>
+          <div>
+            <span class="brand-mark__eyebrow">Visualisasi Data</span>
+            <span class="brand-mark__title">Grafik Pertumbuhan</span>
+          </div>
+        </div>
+        <span class="tag-pill">Chart.js</span>
+      </header>
+
+      <section class="hero-card">
+        <span class="tag-pill">Tren bulanan</span>
+        <h1 class="hero-title">Lihat perubahan berat dan tinggi dari waktu ke waktu.</h1>
+        <p class="hero-copy">
+          Data diambil dari Supabase lalu dirangkum per bulan untuk mempermudah pembacaan pola pertumbuhan.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Indikator warna</h2>
+        <div class="legend-row" style="margin-top: 1rem;">
+          <span class="status-chip" data-status="normal">Normal</span>
+          <span class="status-chip" data-status="risk">Risiko</span>
+          <span class="status-chip" data-status="stunting">Stunting</span>
+        </div>
+      </section>
+
+      <section class="card chart-card">
+        <h2 class="section-title">Berat Badan per Bulan</h2>
+        <p class="section-copy">Rata-rata berat badan dihitung dari seluruh catatan yang tersimpan di bulan yang sama.</p>
+        <div class="message" id="chartMessage" aria-live="polite"></div>
+        <canvas id="weightChart" style="margin-top: 1rem;"></canvas>
+      </section>
+
+      <section class="card chart-card">
+        <h2 class="section-title">Tinggi Badan per Bulan</h2>
+        <p class="section-copy">Gunakan tren ini untuk melihat apakah laju pertumbuhan tetap konsisten.</p>
+        <canvas id="heightChart" style="margin-top: 1rem;"></canvas>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Ringkasan Bulanan</h2>
+        <div id="monthlySummary" style="margin-top: 0.5rem;"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigasi utama">
+      <div class="bottom-nav__grid">
+        <a href="./index.html"><i class="fas fa-home"></i>Home</a>
+        <a href="./input.html"><i class="fas fa-edit"></i>Input</a>
+        <a href="./edukasi.html"><i class="fas fa-book-open"></i>Edukasi</a>
+        <a href="./grafik.html"><i class="fas fa-chart-line"></i>Grafik</a>
+        <a href="./pengingat.html"><i class="fas fa-bell"></i>Ingat</a>
+        <a href="./aktivitas.html"><i class="fas fa-apple-alt"></i>Gizi</a>
+      </div>
+    </nav>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./app.js"></script>
+    <script type="module" src="session.js"></script>
+    <script type="module">
+      import { supabase } from './supabase.js';
+
+      document.addEventListener("DOMContentLoaded", async function () {
+        const summaryRoot = document.getElementById("monthlySummary");
+        const chartMessage = document.getElementById("chartMessage");
+        const ui = window.SIKEMBANG_APP;
+
+        if (!window.Chart) {
+          if (ui.setMessage) ui.setMessage(chartMessage, "Chart.js gagal dimuat.", "error");
+          return;
+        }
+
+        async function getUser() {
+          const { data } = await supabase.auth.getUser();
+
+          if (!data.user) {
+            window.location.href = "login.html";
+            return null;
+          }
+
+          return data.user;
+        }
+
+        function getStatusColor(status) {
+          if (status === "stunting") return "#e06d64";
+          if (status === "risk") return "#efc14d";
+          return "#49a66f";
+        }
+
+        const user = await getUser();
+        if (!user) return;
+
+        try {
+          const { data, error } = await supabase
+            .from("growth_data")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: true });
+
+          if (error) throw error;
+
+          if (!data || data.length === 0) {
+            if (ui.setMessage) ui.setMessage(chartMessage, "Belum ada data grafik untuk ditampilkan.", "warning");
+            summaryRoot.innerHTML = '<div class="empty-state">Belum ada data pertumbuhan.</div>';
+            return;
+          }
+
+          const labels = data.map(d => {
+            const date = new Date(d.created_at);
+            return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+          });
+          const weights = data.map(d => parseFloat(d.weight));
+          const heights = data.map(d => parseFloat(d.height));
+          const statuses = data.map(d => d.status);
+
+          function renderChart(canvasId, label, values, borderColor, unitLabel) {
+            return new Chart(document.getElementById(canvasId), {
+              type: "line",
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    label: label,
+                    data: values,
+                    borderColor: borderColor,
+                    backgroundColor: "rgba(95, 180, 140, 0.14)",
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 5,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: statuses.map(getStatusColor),
+                    pointBorderColor: "#ffffff",
+                    pointBorderWidth: 2,
+                  },
+                ],
+              },
+              options: {
+                maintainAspectRatio: false,
+                scales: {
+                  y: {
+                    beginAtZero: false,
+                    ticks: {
+                      callback: function (value) {
+                        return value + " " + unitLabel;
+                      },
+                    },
+                  },
+                },
+                plugins: {
+                  legend: {
+                    display: false,
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function (context) {
+                        return label + ": " + context.raw + " " + unitLabel;
+                      },
+                      afterLabel: function (context) {
+                        return "Status: " + (ui.getStatusLabel ? ui.getStatusLabel(statuses[context.dataIndex]) : statuses[context.dataIndex]);
+                      },
+                    },
+                  },
+                },
+              },
+            });
+          }
+
+          renderChart("weightChart", "Berat Badan", weights, "#4fa77b", "kg");
+          renderChart("heightChart", "Tinggi Badan", heights, "#2f8f68", "cm");
+
+          // Basic summary
+          summaryRoot.innerHTML = data.slice(-5).reverse().map(item => `
+            <div class="summary-line">
+              <div>
+                <h4>${new Date(item.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</h4>
+                <p>Berat ${item.weight} kg | tinggi ${item.height} cm</p>
+              </div>
+              <span class="status-chip" data-status="${item.status}">
+                ${ui.getStatusLabel ? ui.getStatusLabel(item.status) : item.status}
+              </span>
+            </div>
+          `).join("");
+
+        } catch (error) {
+          if (ui.setMessage) ui.setMessage(chartMessage, "Gagal memuat grafik: " + error.message, "error");
+          summaryRoot.innerHTML = '<div class="empty-state">Gagal memuat data.</div>';
+        }
+      });
+    </script>
+  </body>
+</html>

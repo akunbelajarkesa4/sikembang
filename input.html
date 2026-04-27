@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#5fb48c">
+    <title>SIKEMBANG | Input Data</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <div class="brand-mark">
+          <div class="brand-mark__logo">SK</div>
+          <div>
+            <span class="brand-mark__eyebrow">Input Harian</span>
+            <span class="brand-mark__title">Data Pertumbuhan Anak</span>
+          </div>
+        </div>
+        <span class="tag-pill">Growth Form</span>
+      </header>
+
+      <section class="hero-card">
+        <span class="tag-pill">Form pencatatan</span>
+        <h1 class="hero-title">Masukkan data pertumbuhan dengan cepat.</h1>
+        <p class="hero-copy">
+          Data akan dikirim ke tabel <code>growth_data</code> di Supabase dan status pertumbuhan
+          dihitung otomatis sebagai indikator awal.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Form Input</h2>
+        <p class="section-copy">
+          Isi semua data utama agar catatan pertumbuhan tersimpan rapi dan mudah dipantau.
+        </p>
+
+        <form id="growthForm" style="margin-top: 1rem;">
+          <div class="form-grid">
+            <div class="field">
+              <label for="weight">Berat badan (kg)</label>
+              <input id="weight" name="weight" type="number" step="0.1" min="0" inputmode="decimal" required>
+            </div>
+
+            <div class="field">
+              <label for="height">Tinggi badan (cm)</label>
+              <input id="height" name="height" type="number" step="0.1" min="0" inputmode="decimal" required>
+            </div>
+
+            <div class="field">
+              <label for="headCircumference">Lingkar kepala (cm)</label>
+              <input id="headCircumference" name="headCircumference" type="number" step="0.1" min="0" inputmode="decimal" required>
+            </div>
+
+            <div class="field">
+              <label for="feedingType">Jenis pemberian makan</label>
+              <select id="feedingType" name="feedingType" required>
+                <option value="">Pilih jenis</option>
+                <option value="ASI">ASI</option>
+                <option value="MPASI">MPASI</option>
+                <option value="makanan">Makanan</option>
+              </select>
+            </div>
+
+            <div class="field field--full">
+              <label for="complaints">Keluhan</label>
+              <textarea id="complaints" name="complaints" placeholder="Contoh: nafsu makan menurun, batuk ringan, atau tidak ada keluhan"></textarea>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 1rem; padding: 1rem;">
+            <div class="inline-actions" style="justify-content: space-between; align-items: center;">
+              <div>
+                <span class="muted">Perkiraan status saat ini</span>
+                <div style="margin-top: 0.5rem;">
+                  <span class="status-chip" id="statusPreview" data-status="normal">Normal</span>
+                </div>
+              </div>
+              <button class="button" type="submit">Simpan Data</button>
+            </div>
+            <p class="helper-text">Status ini adalah indikator awal sederhana dan bukan pengganti pemeriksaan tenaga kesehatan.</p>
+          </div>
+
+          <div class="message" id="formMessage" aria-live="polite"></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Catatan Terbaru</h2>
+        <div id="recentGrowthList" class="list-grid" style="margin-top: 0.5rem;"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigasi utama">
+      <div class="bottom-nav__grid">
+        <a href="./index.html"><i class="fas fa-home"></i>Home</a>
+        <a href="./input.html"><i class="fas fa-edit"></i>Input</a>
+        <a href="./edukasi.html"><i class="fas fa-book-open"></i>Edukasi</a>
+        <a href="./grafik.html"><i class="fas fa-chart-line"></i>Grafik</a>
+        <a href="./pengingat.html"><i class="fas fa-bell"></i>Ingat</a>
+        <a href="./aktivitas.html"><i class="fas fa-apple-alt"></i>Gizi</a>
+      </div>
+    </nav>
+
+    <script src="./app.js"></script>
+    <script type="module" src="session.js"></script>
+    <script type="module">
+      import { supabase } from './supabase.js';
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("growthForm");
+        const statusPreview = document.getElementById("statusPreview");
+        const recentGrowthList = document.getElementById("recentGrowthList");
+        const formMessage = document.getElementById("formMessage");
+        const ui = window.SIKEMBANG_APP;
+
+        async function getUser() {
+          const { data } = await supabase.auth.getUser();
+
+          if (!data.user) {
+            window.location.href = "login.html";
+            return null;
+          }
+
+          return data.user;
+        }
+
+        // Call it immediately on load
+        getUser();
+
+        function calculateGrowthStatus({ weight, height, headCircumference }) {
+          // Placeholder for actual status calculation logic
+          return "normal";
+        }
+
+        function renderStatusPreview() {
+          const status = calculateGrowthStatus({
+            weight: document.getElementById("weight").value,
+            height: document.getElementById("height").value,
+            headCircumference: document.getElementById("headCircumference").value,
+          });
+
+          statusPreview.dataset.status = status;
+          statusPreview.textContent = ui.getStatusLabel(status);
+        }
+
+        async function loadRecentGrowth() {
+          try {
+            const user = await getUser();
+            if (!user) return;
+
+            const { data: entries, error } = await supabase
+              .from('growth_data')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(5);
+
+            if (error) throw error;
+
+            if (!entries || entries.length === 0) {
+              recentGrowthList.innerHTML =
+                '<div class="empty-state">Belum ada data pertumbuhan yang tersimpan.</div>';
+              return;
+            }
+
+            recentGrowthList.innerHTML = entries
+              .map(function (item) {
+                return (
+                  '<div class="list-item">' +
+                  "<div>" +
+                  "<h4>" +
+                  ui.formatDateTime(item.created_at) +
+                  "</h4>" +
+                  "<p>BB " +
+                  item.weight +
+                  " kg | TB " +
+                  item.height +
+                  " cm | LK " +
+                  item.head_circumference +
+                  " cm</p>" +
+                  "<p>Asupan: " +
+                  item.feeding_type +
+                  "</p>" +
+                  "</div>" +
+                  '<span class="status-chip" data-status="' +
+                  item.status +
+                  '">' +
+                  ui.getStatusLabel(item.status) +
+                  "</span>" +
+                  "</div>"
+                );
+              })
+              .join("");
+          } catch (error) {
+            recentGrowthList.innerHTML =
+              '<div class="empty-state">Gagal memuat data terbaru: ' + error.message + "</div>";
+          }
+        }
+
+        form.addEventListener("input", renderStatusPreview);
+
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          ui.clearMessage(formMessage);
+
+          try {
+            const user = await getUser();
+            if (!user) return;
+
+            const weightVal = parseFloat(document.getElementById('weight').value);
+            const heightVal = parseFloat(document.getElementById('height').value);
+            const headCircumferenceVal = parseFloat(document.getElementById('headCircumference').value);
+            const feedingTypeVal = document.getElementById('feedingType').value;
+            const complaintsVal = document.getElementById('complaints').value.trim();
+            const statusVal = calculateGrowthStatus({ weight: weightVal, height: heightVal, headCircumference: headCircumferenceVal });
+
+            const { error: insertError } = await supabase.from("growth_data").insert({
+              user_id: user.id,
+              weight: weightVal,
+              height: heightVal,
+              head_circumference: headCircumferenceVal,
+              feeding_type: feedingTypeVal,
+              complaints: complaintsVal,
+              status: statusVal
+            });
+
+            if (insertError) throw insertError;
+
+            ui.setMessage(
+              formMessage,
+              "Data berhasil disimpan dengan status " + ui.getStatusLabel(status) + ".",
+              "success"
+            );
+            form.reset();
+            renderStatusPreview();
+            await loadRecentGrowth();
+          } catch (error) {
+            ui.setMessage(formMessage, "Gagal menyimpan data: " + error.message, "error");
+          }
+        });
+
+        renderStatusPreview();
+        loadRecentGrowth();
+      });
+    </script>
+  </body>
+</html>

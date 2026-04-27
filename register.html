@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIKEMBANG - Daftar</title>
+    <!-- Use Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Use FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #E8F5E9;
+            --accent-color: #2E7D32;
+            --border-radius: 12px;
+            --shadow-soft: 0 4px 10px rgba(0,0,0,0.1);
+            --font-family: 'Poppins', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #C8E6C9 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            background-color: #ffffff;
+            width: 100%;
+            max-width: 400px;
+            padding: 40px 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-soft);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .auth-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .auth-header {
+            margin-bottom: 30px;
+        }
+
+        .auth-header h1 {
+            color: var(--accent-color);
+            font-weight: 600;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .auth-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+            transition: color 0.3s ease;
+            pointer-events: none;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px 15px 15px 45px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-family: var(--font-family);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+        }
+
+        .input-group input:focus ~ i {
+            color: var(--primary-color);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: var(--font-family);
+            transition: background 0.3s ease, transform 0.2s ease;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+            transform: scale(1.02);
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        .auth-footer {
+            margin-top: 25px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .auth-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .auth-footer a:hover {
+            color: var(--accent-color);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>SIKEMBANG</h1>
+            <p>Daftar akun baru</p>
+        </div>
+        
+        <form id="registerForm">
+            <div class="input-group">
+                <input type="text" id="username" placeholder="Username" required>
+                <i class="fas fa-user"></i>
+            </div>
+
+            <div class="input-group">
+                <input type="email" id="email" placeholder="Email" required>
+                <i class="fas fa-envelope"></i>
+            </div>
+            
+            <div class="input-group">
+                <input type="password" id="password" placeholder="Password" required minlength="6">
+                <i class="fas fa-lock"></i>
+            </div>
+            
+            <button type="submit" class="btn-submit">Daftar</button>
+        </form>
+        
+        <div class="auth-footer">
+            Sudah punya akun? <a href="login.html">Masuk</a>
+        </div>
+    </div>
+
+    <script type="module" src="register.js"></script>
+</body>
+</html>

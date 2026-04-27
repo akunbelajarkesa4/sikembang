@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#5fb48c">
+    <title>SIKEMBANG | Aktivitas &amp; Gizi</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <div class="brand-mark">
+          <div class="brand-mark__logo">SK</div>
+          <div>
+            <span class="brand-mark__eyebrow">Rutinitas Harian</span>
+            <span class="brand-mark__title">Aktivitas &amp; Asupan Gizi</span>
+          </div>
+        </div>
+        <span class="tag-pill">Tracking Harian</span>
+      </header>
+
+      <section class="hero-card">
+        <span class="tag-pill">Daily tracker</span>
+        <h1 class="hero-title">Catat gerak aktif dan makanan anak dalam satu halaman.</h1>
+        <p class="hero-copy">
+          Log harian tersimpan ke tabel <code>activities</code> di Supabase dan diringkas
+          untuk dibandingkan dengan rekomendasi dasar aktivitas dan makan seimbang.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Input Aktivitas &amp; Makanan</h2>
+        <form id="activityForm" style="margin-top: 1rem;">
+          <div class="form-grid">
+            <div class="field">
+              <label for="activity">Jenis aktivitas</label>
+              <input id="activity" name="activity" type="text" placeholder="Contoh: bermain sepeda" required>
+            </div>
+
+            <div class="field">
+              <label for="duration">Durasi (menit)</label>
+              <input id="duration" name="duration" type="number" min="1" step="1" inputmode="numeric" required>
+            </div>
+
+            <div class="field field--full">
+              <label for="food">Asupan makanan</label>
+              <textarea id="food" name="food" placeholder="Contoh: nasi, ayam, bayam, pisang, air putih" required></textarea>
+            </div>
+          </div>
+
+          <div class="inline-actions" style="margin-top: 1rem; justify-content: space-between; align-items: center;">
+            <p class="helper-text">Rekomendasi dasar: aktivitas aktif 60 menit per hari dan menu yang bervariasi.</p>
+            <button class="button" type="submit">Simpan Log</button>
+          </div>
+
+          <div class="message" id="activityMessage" aria-live="polite"></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Ringkasan Hari Ini</h2>
+        <div class="summary-grid" id="activitySummary" style="margin-top: 1rem;"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Log Aktivitas</h2>
+        <div id="activityList" style="margin-top: 0.5rem;"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigasi utama">
+      <div class="bottom-nav__grid">
+        <a href="./index.html"><i class="fas fa-home"></i>Home</a>
+        <a href="./input.html"><i class="fas fa-edit"></i>Input</a>
+        <a href="./edukasi.html"><i class="fas fa-book-open"></i>Edukasi</a>
+        <a href="./grafik.html"><i class="fas fa-chart-line"></i>Grafik</a>
+        <a href="./pengingat.html"><i class="fas fa-bell"></i>Ingat</a>
+        <a href="./aktivitas.html"><i class="fas fa-apple-alt"></i>Gizi</a>
+      </div>
+    </nav>
+
+    <script src="./app.js"></script>
+    <script type="module" src="session.js"></script>
+    <script type="module">
+      import { supabase } from './supabase.js';
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("activityForm");
+        const activityList = document.getElementById("activityList");
+        const activitySummary = document.getElementById("activitySummary");
+        const activityMessage = document.getElementById("activityMessage");
+        const ui = window.SIKEMBANG_APP;
+
+        async function getUser() {
+          const { data } = await supabase.auth.getUser();
+
+          if (!data.user) {
+            window.location.href = "login.html";
+            return null;
+          }
+
+          return data.user;
+        }
+
+        getUser();
+
+        function getTodayEntries(entries) {
+          const today = new Date();
+          const todayKey =
+            today.getFullYear() +
+            "-" +
+            String(today.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(today.getDate()).padStart(2, "0");
+          return entries.filter(function (item) {
+            const date = new Date(item.created_at);
+            const itemKey =
+              date.getFullYear() +
+              "-" +
+              String(date.getMonth() + 1).padStart(2, "0") +
+              "-" +
+              String(date.getDate()).padStart(2, "0");
+            return itemKey === todayKey;
+          });
+        }
+
+        function evaluateFoodQuality(foodText) {
+          const text = foodText.toLowerCase();
+          const proteinKeywords = ["ayam", "ikan", "telur", "tempe", "tahu", "daging"];
+          const produceKeywords = ["bayam", "wortel", "brokoli", "buah", "pisang", "pepaya", "apel"];
+
+          const hasProtein = proteinKeywords.some(function (keyword) {
+            return text.includes(keyword);
+          });
+          const hasProduce = produceKeywords.some(function (keyword) {
+            return text.includes(keyword);
+          });
+
+          if (hasProtein && hasProduce) {
+            return "Menu cukup bervariasi";
+          }
+
+          if (hasProtein || hasProduce) {
+            return "Sudah baik, tambahkan variasi";
+          }
+
+          return "Perlu tambah protein dan sayur atau buah";
+        }
+
+        function renderSummary(entries) {
+          const todayEntries = getTodayEntries(entries);
+          const totalMinutes = todayEntries.reduce(function (sum, item) {
+            return sum + Number(item.duration || 0);
+          }, 0);
+          const combinedFood = todayEntries
+            .map(function (item) {
+              return item.food;
+            })
+            .join(", ");
+          const foodQuality = combinedFood ? evaluateFoodQuality(combinedFood) : "Belum ada catatan makan hari ini";
+          const activityStatus = totalMinutes >= 60 ? "Target aktivitas tercapai" : "Tambah aktivitas ringan";
+
+          activitySummary.innerHTML =
+            '<div class="summary-card"><span>Total aktivitas hari ini</span><strong>' +
+            totalMinutes +
+            ' menit</strong></div>' +
+            '<div class="summary-card"><span>Rekomendasi gerak</span><strong>' +
+            activityStatus +
+            '</strong></div>' +
+            '<div class="summary-card"><span>Asupan tercatat</span><strong>' +
+            todayEntries.length +
+            ' log</strong></div>' +
+            '<div class="summary-card"><span>Kualitas menu</span><strong>' +
+            foodQuality +
+            "</strong></div>";
+        }
+
+        async function loadActivities() {
+          try {
+            const user = await getUser();
+            if (!user) return;
+
+            const { data: entries, error } = await supabase
+              .from('activities')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            renderSummary(entries || []);
+
+            if (!entries || !entries.length) {
+              activityList.innerHTML = '<div class="empty-state">Belum ada log aktivitas yang tersimpan.</div>';
+              return;
+            }
+
+            activityList.innerHTML = entries
+              .map(function (item) {
+                return (
+                  '<div class="activity-item">' +
+                  "<div>" +
+                  "<h4>" +
+                  item.activity +
+                  "</h4>" +
+                  "<p>" +
+                  item.duration +
+                  " menit | " +
+                  (ui.formatDateTime ? ui.formatDateTime(item.created_at) : new Date(item.created_at).toLocaleString()) +
+                  "</p>" +
+                  "<p>Makanan: " +
+                  item.food +
+                  "</p>" +
+                  "</div>" +
+                  '<span class="mini-chip">Harian</span>' +
+                  "</div>"
+                );
+              })
+              .join("");
+          } catch (error) {
+            activityList.innerHTML =
+              '<div class="empty-state">Gagal memuat log aktivitas: ' + error.message + "</div>";
+          }
+        }
+
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          if (ui.clearMessage) ui.clearMessage(activityMessage);
+
+          try {
+            const user = await getUser();
+            if (!user) return;
+
+            const activityVal = form.elements["activity"].value.trim();
+            const durationVal = form.elements["duration"].value;
+            const foodVal = form.elements["food"].value.trim();
+
+            const { error: insertError } = await supabase.from("activities").insert({
+              user_id: user.id,
+              activity: activityVal,
+              duration: durationVal,
+              food: foodVal
+            });
+
+            if (insertError) throw insertError;
+
+            if (ui.setMessage) ui.setMessage(activityMessage, "Log aktivitas berhasil disimpan.", "success");
+            form.reset();
+            await loadActivities();
+          } catch (error) {
+            if (ui.setMessage) ui.setMessage(activityMessage, "Gagal menyimpan log: " + error.message, "error");
+          }
+        });
+
+        loadActivities();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#5fb48c">
+    <title>SIKEMBANG | Home</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <div class="brand-mark">
+          <div class="brand-mark__logo">SK</div>
+          <div>
+            <span class="brand-mark__eyebrow">Sistem Informasi</span>
+            <span class="brand-mark__title">SIKEMBANG</span>
+          </div>
+        </div>
+        <span class="tag-pill" id="user-greeting">Mobile Health Tracker</span>
+      </header>
+
+      <section class="hero-card">
+        <div class="hero-grid">
+          <div>
+            <span class="tag-pill">Pantau tumbuh kembang lebih tenang</span>
+            <h1 class="hero-title">Satu ruang ringkas untuk data, edukasi, dan pengingat anak.</h1>
+            <p class="hero-copy">
+              SIKEMBANG membantu pencatatan berat badan, tinggi badan, aktivitas, dan jadwal kesehatan
+              dengan tampilan sederhana yang nyaman dipakai dari ponsel.
+            </p>
+            <div class="hero-actions">
+              <a class="button" href="./input.html">Mulai Input Data</a>
+              <a class="button-secondary" href="./grafik.html">Lihat Grafik</a>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span>Catatan Pertumbuhan</span>
+              <strong id="growthCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Reminder Aktif</span>
+              <strong id="reminderCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Log Aktivitas</span>
+              <strong id="activityCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Status Aplikasi</span>
+              <strong id="appStatus">Siap</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Langkah cepat hari ini</h2>
+        <p class="section-copy">
+          Buka halaman yang dibutuhkan tanpa berpindah jauh. Semua menu penting tersedia di navigasi bawah.
+        </p>
+        <div class="quick-grid" style="margin-top: 1rem;">
+          <a class="quick-card" href="./input.html">
+            <span class="mini-chip">1</span>
+            <h3>Input Pertumbuhan</h3>
+            <p>Catat berat, tinggi, lingkar kepala, dan keluhan anak.</p>
+          </a>
+          <a class="quick-card" href="./pengingat.html">
+            <span class="mini-chip">2</span>
+            <h3>Atur Pengingat</h3>
+            <p>Tambahkan imunisasi, vitamin, dan jadwal pemeriksaan rutin.</p>
+          </a>
+          <a class="quick-card" href="./grafik.html">
+            <span class="mini-chip">3</span>
+            <h3>Visualisasi Tren</h3>
+            <p>Lihat perubahan berat dan tinggi dari bulan ke bulan.</p>
+          </a>
+          <a class="quick-card" href="./aktivitas.html">
+            <span class="mini-chip">4</span>
+            <h3>Aktivitas &amp; Gizi</h3>
+            <p>Simpan aktivitas harian dan asupan makan untuk evaluasi singkat.</p>
+          </a>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Catatan</h2>
+        <div class="notice-strip">
+          <div>
+            <strong>Hubungkan Supabase untuk fitur penuh</strong>
+            <p class="muted" id="configStatus">
+              Edit file <code>supabase.js</code> dan isi kredensial proyek agar penyimpanan data aktif.
+            </p>
+          </div>
+          <a class="button-ghost" href="./edukasi.html">Buka Edukasi</a>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigasi utama">
+      <div class="bottom-nav__grid">
+        <a href="./index.html"><i class="fas fa-home"></i>Home</a>
+        <a href="./input.html"><i class="fas fa-edit"></i>Input</a>
+        <a href="./edukasi.html"><i class="fas fa-book-open"></i>Edukasi</a>
+        <a href="./grafik.html"><i class="fas fa-chart-line"></i>Grafik</a>
+        <a href="./pengingat.html"><i class="fas fa-bell"></i>Ingat</a>
+        <a href="./aktivitas.html"><i class="fas fa-apple-alt"></i>Gizi</a>
+      </div>
+    </nav>
+
+    <script src="./app.js"></script>
+    <script type="module" src="session.js"></script>
+    <script type="module" src="dashboard.js"></script>
+    <script type="module">
+      import { supabase } from './supabase.js';
+
+      document.addEventListener("DOMContentLoaded", async function () {
+        const growthCount = document.getElementById("growthCount");
+        const reminderCount = document.getElementById("reminderCount");
+        const activityCount = document.getElementById("activityCount");
+        const appStatus = document.getElementById("appStatus");
+        const configStatus = document.getElementById("configStatus");
+
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return; // redirect will be handled by session.js
+
+          // Fetch Growth Data Count
+          const { count: growthDataCount, error: growthError } = await supabase
+            .from('growth_data')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+
+          // Fetch Reminders Count (Active only)
+          const { count: remindersCount, error: reminderError } = await supabase
+            .from('reminders')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .neq('status', 'done');
+
+          // Fetch Activities Count
+          const { count: activitiesCount, error: activityError } = await supabase
+            .from('activities')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+
+          if (growthError) throw growthError;
+          if (reminderError) throw reminderError;
+          if (activityError) throw activityError;
+
+          growthCount.textContent = growthDataCount || 0;
+          reminderCount.textContent = remindersCount || 0;
+          activityCount.textContent = activitiesCount || 0;
+          
+          appStatus.textContent = "Siap";
+          if (configStatus) {
+            configStatus.textContent = "Semua data sinkron dengan database terbaru.";
+          }
+        } catch (error) {
+          console.error("Gagal memuat ringkasan data:", error);
+          appStatus.textContent = "Error";
+          if (configStatus) {
+            configStatus.textContent = error.message || "Tidak dapat memuat ringkasan data.";
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

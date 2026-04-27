@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#5fb48c">
+    <title>SIKEMBANG | Pengingat</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <div class="brand-mark">
+          <div class="brand-mark__logo">SK</div>
+          <div>
+            <span class="brand-mark__eyebrow">Reminder Kesehatan</span>
+            <span class="brand-mark__title">Imunisasi, Vitamin, Cek Rutin</span>
+          </div>
+        </div>
+        <span class="tag-pill">Supabase CRUD</span>
+      </header>
+
+      <section class="hero-card">
+        <span class="tag-pill">Jadwal penting</span>
+        <h1 class="hero-title">Simpan pengingat supaya agenda kesehatan tidak terlewat.</h1>
+        <p class="hero-copy">
+          Tambahkan jadwal imunisasi, vitamin, atau pemeriksaan. Anda bisa menandai selesai dan menghapusnya
+          kapan saja dari daftar pengingat.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Tambah Pengingat</h2>
+        <form id="reminderForm" style="margin-top: 1rem;">
+          <div class="form-grid">
+            <div class="field">
+              <label for="title">Judul pengingat</label>
+              <input id="title" name="title" type="text" placeholder="Contoh: Imunisasi campak" required>
+            </div>
+
+            <div class="field">
+              <label for="date">Tanggal</label>
+              <input id="date" name="date" type="date" required>
+            </div>
+          </div>
+
+          <div class="inline-actions" style="margin-top: 1rem; justify-content: space-between; align-items: center;">
+            <p class="helper-text">Bisa digunakan untuk imunisasi, jadwal vitamin, dan pemeriksaan kesehatan.</p>
+            <button class="button" type="submit">Tambah Reminder</button>
+          </div>
+
+          <div class="message" id="reminderMessage" aria-live="polite"></div>
+        </form>
+      </section>
+
+      <section class="card" id="dueAlertCard" style="display: none;">
+        <h2 class="section-title">Pengingat Jatuh Tempo</h2>
+        <div id="dueAlertList" style="margin-top: 0.5rem;"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Daftar Pengingat</h2>
+        <div id="reminderList" style="margin-top: 0.5rem;"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigasi utama">
+      <div class="bottom-nav__grid">
+        <a href="./index.html"><i class="fas fa-home"></i>Home</a>
+        <a href="./input.html"><i class="fas fa-edit"></i>Input</a>
+        <a href="./edukasi.html"><i class="fas fa-book-open"></i>Edukasi</a>
+        <a href="./grafik.html"><i class="fas fa-chart-line"></i>Grafik</a>
+        <a href="./pengingat.html"><i class="fas fa-bell"></i>Ingat</a>
+        <a href="./aktivitas.html"><i class="fas fa-apple-alt"></i>Gizi</a>
+      </div>
+    </nav>
+
+    <script src="./app.js"></script>
+    <script type="module" src="session.js"></script>
+    <script type="module">
+      import { supabase } from './supabase.js';
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("reminderForm");
+        const reminderList = document.getElementById("reminderList");
+        const reminderMessage = document.getElementById("reminderMessage");
+        const dueAlertCard = document.getElementById("dueAlertCard");
+        const dueAlertList = document.getElementById("dueAlertList");
+        const ui = window.SIKEMBANG_APP;
+
+        async function getUser() {
+          const { data } = await supabase.auth.getUser();
+
+          if (!data.user) {
+            window.location.href = "login.html";
+            return null;
+          }
+
+          return data.user;
+        }
+
+        getUser();
+
+        function renderDueAlerts(reminders) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const dueItems = reminders.filter(function (item) {
+            const reminderDate = ui.parseDate(item.date);
+            if (!reminderDate) {
+              return false;
+            }
+            reminderDate.setHours(0, 0, 0, 0);
+            return item.status !== "done" && reminderDate <= today;
+          });
+
+          if (!dueItems.length) {
+            dueAlertCard.style.display = "none";
+            dueAlertList.innerHTML = "";
+            return;
+          }
+
+          dueAlertCard.style.display = "block";
+          dueAlertList.innerHTML = dueItems
+            .map(function (item) {
+              return (
+                '<div class="summary-line">' +
+                "<div>" +
+                "<h4>" +
+                item.title +
+                "</h4>" +
+                "<p>Jadwal: " +
+                ui.formatDate(item.date) +
+                "</p>" +
+                "</div>" +
+                '<span class="status-chip" data-status="risk">Perlu dicek</span>' +
+                "</div>"
+              );
+            })
+            .join("");
+        }
+
+        async function loadReminders() {
+          try {
+            const user = await getUser();
+            if (!user) return;
+
+            const { data: reminders, error } = await supabase
+              .from('reminders')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('date', { ascending: true });
+
+            if (error) throw error;
+            renderDueAlerts(reminders || []);
+
+            if (!reminders || !reminders.length) {
+              reminderList.innerHTML = '<div class="empty-state">Belum ada reminder yang dibuat.</div>';
+              return;
+            }
+
+            reminderList.innerHTML = reminders
+              .map(function (item) {
+                const isDone = item.status === "done";
+                return (
+                  '<div class="reminder-item' +
+                  (isDone ? " is-done" : "") +
+                  '">' +
+                  "<div>" +
+                  "<h4>" +
+                  item.title +
+                  "</h4>" +
+                  "<p>Tanggal: " +
+                  ui.formatDate(item.date) +
+                  "</p>" +
+                  "</div>" +
+                  '<div class="inline-actions">' +
+                  '<button class="button-ghost" type="button" data-action="toggle" data-id="' +
+                  item.id +
+                  '" data-status="' +
+                  item.status +
+                  '">' +
+                  (isDone ? "Buka Lagi" : "Selesai") +
+                  "</button>" +
+                  '<button class="button-ghost" type="button" data-action="delete" data-id="' +
+                  item.id +
+                  '">Hapus</button>' +
+                  "</div>" +
+                  "</div>"
+                );
+              })
+              .join("");
+          } catch (error) {
+            reminderList.innerHTML =
+              '<div class="empty-state">Gagal memuat reminder: ' + error.message + "</div>";
+          }
+        }
+
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          ui.clearMessage(reminderMessage);
+
+          try {
+            const user = await getUser();
+            if (!user) return;
+
+            const titleVal = form.elements["title"].value.trim();
+            const dateVal = form.elements["date"].value;
+
+            const { error: insertError } = await supabase.from("reminders").insert({
+              user_id: user.id,
+              title: titleVal,
+              date: dateVal,
+              status: "pending"
+            });
+
+            if (insertError) throw insertError;
+
+            ui.setMessage(reminderMessage, "Reminder berhasil ditambahkan.", "success");
+            form.reset();
+            await loadReminders();
+          } catch (error) {
+            ui.setMessage(reminderMessage, "Gagal menambahkan reminder: " + error.message, "error");
+          }
+        });
+
+        reminderList.addEventListener("click", async function (event) {
+          const button = event.target.closest("button[data-action]");
+          if (!button) {
+            return;
+          }
+
+          const reminderId = button.dataset.id;
+          const action = button.dataset.action;
+
+          try {
+            if (action === "toggle") {
+              const nextStatus = button.dataset.status === "done" ? "pending" : "done";
+              await supabase.from("reminders").update({ status: nextStatus }).eq("id", reminderId);
+            }
+
+            if (action === "delete") {
+              await supabase.from("reminders").delete().eq("id", reminderId);
+            }
+
+            await loadReminders();
+          } catch (error) {
+            ui.setMessage(reminderMessage, "Perubahan reminder gagal: " + error.message, "error");
+          }
+        });
+
+        loadReminders();
+      });
+    </script>
+  </body>
+</html>
